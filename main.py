@@ -1,3 +1,4 @@
+import argparse
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 from contextlib import closing
@@ -7,6 +8,10 @@ import subprocess
 from tempfile import gettempdir
 from PyPDF2 import PdfReader
 from pathlib import Path
+
+parser = argparse.ArgumentParser()
+parser.add_argument('bucket')
+args = parser.parse_args()
 
 
 def synthesize_speech(text, output_file="output.mp3", voice_id="Joanna", output_format="mp3"):
@@ -25,20 +30,19 @@ def synthesize_speech(text, output_file="output.mp3", voice_id="Joanna", output_
     try:
         polly = boto3.client("polly")
 
-        response = polly.synthesize_speech(
+        response = polly.start_speech_synthesis_task(
+            OutputS3BucketName=args.bucket,
+            OutputS3KeyPrefix=output_file,
             Text=text,
             VoiceId=voice_id,
             OutputFormat=output_format,
         )
 
-        if "AudioStream" in response:
-            with open(output_file, "wb") as f:
-                f.write(response["AudioStream"].read())
-            print(f"Speech synthesized and saved to {output_file}")
-            return True
-        else:
-            print("Could not synthesize speech")
-            return False
+        taskId = response['SynthesisTask']['TaskId']
+        print(f'Task id is {taskId}')
+
+        task_status = polly.get_speech_synthesis_task(TaskId=taskId)
+        print(task_status)
 
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -50,15 +54,10 @@ def main():
     pth = Path.cwd().parent.parent / 'Downloads'
     reader = PdfReader(pth / f'{filename}.pdf')
     for n, page in enumerate(reader.pages, start=1):
-        text = page.extract_text()
-        print(text)
-
-        if synthesize_speech(text, f'{filename}_page{n}'):
-            print("Success")
-        else:
-            print("Failure")
         if n > 6:
-            break
+            text = page.extract_text()
+            print(text)
+            synthesize_speech(text, f'{filename}_page{n}')
 
 
 if __name__ == "__main__":
