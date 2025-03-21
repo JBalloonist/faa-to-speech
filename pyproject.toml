@@ -1,0 +1,11 @@
+[project]
+name = "faa-to-speech"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "boto3>=1.37.17",
+    "pypdf2>=3.0.1",
+    "pyttsx3>=2.98",
+]
